@@ -206,6 +206,35 @@ public class ComputerAssemblyStation : MonoBehaviour
         Destroy(computer.gameObject);
         computer = null;
         ShowNotice("Компьютер взорвался! Материнская плата выпала на платформу.");
+
+        yield return new WaitForSeconds(5f);
+        TeleportPlayerToCubeTen();
+    }
+
+    private void TeleportPlayerToCubeTen()
+    {
+        GameObject destinationPlatform = GameObject.Find("Cube (10)");
+        WeaponController player = FindObjectOfType<WeaponController>();
+        if (destinationPlatform == null || player == null) return;
+
+        Vector3 destination = destinationPlatform.transform.position;
+        Collider platformCollider = destinationPlatform.GetComponent<Collider>();
+        if (platformCollider != null)
+            destination.y = platformCollider.bounds.max.y + 1f;
+        else
+            destination.y += 1f;
+
+        Rigidbody playerBody = player.GetComponent<Rigidbody>();
+        if (playerBody != null)
+        {
+            playerBody.position = destination;
+            playerBody.velocity = Vector3.zero;
+            playerBody.angularVelocity = Vector3.zero;
+        }
+        else
+        {
+            player.transform.position = destination;
+        }
     }
 
     private void CreateComputerDebris(Vector3 center)
