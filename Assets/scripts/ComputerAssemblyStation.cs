@@ -5,6 +5,8 @@ using UnityEngine;
 /// <summary>Builds an interactive computer assembly area on the Cube (9) platform.</summary>
 public class ComputerAssemblyStation : MonoBehaviour
 {
+    [HideInInspector] public GameObject motherboardPrefab;
+
     private static readonly ComputerPartKind[] BuildOrder =
     {
         ComputerPartKind.Case, ComputerPartKind.Motherboard, ComputerPartKind.Processor,
@@ -189,19 +191,33 @@ public class ComputerAssemblyStation : MonoBehaviour
         CreateExplosionEffect(center);
         CreateComputerDebris(center);
 
-        GameObject motherboard = CreatePartModel(
-            ComputerPartKind.Motherboard,
-            computer.position + Vector3.up * 1.4f,
-            Quaternion.Euler(90f, Random.Range(0f, 360f), 0f));
-        motherboard.name = "Выпавшая материнская плата";
-        SetColliders(motherboard, true);
-        Rigidbody motherboardBody = motherboard.AddComponent<Rigidbody>();
-        motherboardBody.mass = 1.2f;
-        motherboardBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        motherboardBody.interpolation = RigidbodyInterpolation.Interpolate;
-        motherboardBody.AddExplosionForce(6f, center, 3.5f, 1.5f, ForceMode.Impulse);
-        motherboardBody.AddTorque(Random.insideUnitSphere * 2f, ForceMode.Impulse);
-        motherboard.AddComponent<ComputerMotherboardTouch>();
+        Quaternion motherboardRotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
+        GameObject motherboardSource = motherboardPrefab;
+        if (motherboardSource == null)
+            motherboardSource = GameObject.Find("bio_motherboard");
+
+        if (motherboardSource == null)
+        {
+            Debug.LogError("Не найдена модель bio_motherboard для выпадения из компьютера.", this);
+        }
+        else
+        {
+            GameObject motherboard = Instantiate(
+                motherboardSource,
+                computer.position + Vector3.up * 1.4f,
+                motherboardRotation);
+            motherboard.transform.localScale = Vector3.one * 0.18f;
+            EnsureMotherboardCollider(motherboard);
+            motherboard.name = "Выпавшая материнская плата";
+            SetColliders(motherboard, true);
+            Rigidbody motherboardBody = motherboard.AddComponent<Rigidbody>();
+            motherboardBody.mass = 1.2f;
+            motherboardBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            motherboardBody.interpolation = RigidbodyInterpolation.Interpolate;
+            motherboardBody.AddExplosionForce(6f, center, 3.5f, 1.5f, ForceMode.Impulse);
+            motherboardBody.AddTorque(Random.insideUnitSphere * 2f, ForceMode.Impulse);
+            motherboard.AddComponent<ComputerMotherboardTouch>();
+        }
 
         Destroy(computer.gameObject);
         computer = null;
@@ -209,6 +225,50 @@ public class ComputerAssemblyStation : MonoBehaviour
 
         yield return new WaitForSeconds(5f);
         TeleportPlayerToCubeTen();
+    }
+
+    private static void EnsureMotherboardCollider(GameObject root)
+    {
+        Collider[] existing = root.GetComponentsInChildren<Collider>();
+        if (existing.Length > 0)
+        {
+            foreach (Collider collider in existing) collider.enabled = true;
+            return;
+        }
+
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            root.AddComponent<BoxCollider>();
+            return;
+        }
+
+        Bounds localBounds = new Bounds();
+        bool hasBounds = false;
+        foreach (Renderer renderer in renderers)
+        {
+            Bounds bounds = renderer.bounds;
+            for (int x = -1; x <= 1; x += 2)
+            for (int y = -1; y <= 1; y += 2)
+            for (int z = -1; z <= 1; z += 2)
+            {
+                Vector3 corner = bounds.center + Vector3.Scale(bounds.extents, new Vector3(x, y, z));
+                Vector3 localCorner = root.transform.InverseTransformPoint(corner);
+                if (!hasBounds)
+                {
+                    localBounds = new Bounds(localCorner, Vector3.zero);
+                    hasBounds = true;
+                }
+                else
+                {
+                    localBounds.Encapsulate(localCorner);
+                }
+            }
+        }
+
+        BoxCollider box = root.AddComponent<BoxCollider>();
+        box.center = localBounds.center;
+        box.size = localBounds.size;
     }
 
     private void TeleportPlayerToCubeTen()

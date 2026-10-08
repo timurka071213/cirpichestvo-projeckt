@@ -6,6 +6,7 @@ public class WeaponController : MonoBehaviour
     [SerializeField] private float range = 100f;
     [SerializeField] private float fireRate = 0.25f;
     [SerializeField] private float pickupDistance = 1.5f;
+    [SerializeField] private GameObject motherboardPrefab;
 
     private const float PickupGroundOffset = 0.28f;
 
@@ -30,8 +31,12 @@ public class WeaponController : MonoBehaviour
         // Attach the assembly workshop at runtime as well as in the scene. This
         // lets the platform work even when Unity kept an older scene in memory.
         GameObject assemblyPlatform = GameObject.Find("Cube (9)");
-        if (assemblyPlatform != null && assemblyPlatform.GetComponent<ComputerAssemblyStation>() == null)
-            assemblyPlatform.AddComponent<ComputerAssemblyStation>();
+        if (assemblyPlatform != null)
+        {
+            ComputerAssemblyStation station = assemblyPlatform.GetComponent<ComputerAssemblyStation>();
+            if (station == null) station = assemblyPlatform.AddComponent<ComputerAssemblyStation>();
+            station.motherboardPrefab = motherboardPrefab;
+        }
     }
 
     private void Update()
